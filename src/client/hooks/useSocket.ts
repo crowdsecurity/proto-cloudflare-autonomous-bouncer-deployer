@@ -17,13 +17,21 @@ export interface ZoneInfo {
   selected: boolean;
 }
 
-export function useSocket() {
+export interface UseSocketOptions {
+  onCommandComplete?: (exitCode: number) => void;
+  onZonesLoaded?: (zones: ZoneInfo[]) => void;
+}
+
+export function useSocket(options: UseSocketOptions = {}) {
   const socketRef = useRef<Socket | null>(null);
+  const optionsRef = useRef(options);
   const [output, setOutput] = useState<CommandOutput[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [zones, setZones] = useState<ZoneInfo[]>([]);
   const [zonesLoading, setZonesLoading] = useState(false);
-  const [lastExitCode, setLastExitCode] = useState<number | null>(null);
+
+  // Keep options ref updated to avoid stale closures
+  optionsRef.current = options;
 
   useEffect(() => {
     const socket = io(window.location.origin, {
@@ -38,7 +46,8 @@ export function useSocket() {
       if (data.type === 'exit' || data.type === 'error') {
         setIsRunning(false);
         if (data.type === 'exit') {
-          setLastExitCode(data.code ?? 0);
+          const exitCode = data.code ?? 0;
+          optionsRef.current.onCommandComplete?.(exitCode);
         }
       }
     });
@@ -46,6 +55,7 @@ export function useSocket() {
     socket.on('zones-loaded', (data: { zones: ZoneInfo[] }) => {
       setZonesLoading(false);
       setZones(data.zones);
+      optionsRef.current.onZonesLoaded?.(data.zones);
     });
 
     socket.on('zones-updated', () => {
@@ -64,7 +74,6 @@ export function useSocket() {
 
   const clearOutput = useCallback(() => {
     setOutput([]);
-    setLastExitCode(null);
   }, []);
 
   const generateConfig = useCallback((
@@ -132,7 +141,6 @@ export function useSocket() {
     isRunning,
     zones,
     zonesLoading,
-    lastExitCode,
     generateConfig,
     loadZones,
     updateZones,

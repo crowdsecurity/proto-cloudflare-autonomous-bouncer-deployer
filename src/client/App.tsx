@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useSocket } from './hooks/useSocket';
+import { useState, useRef, useCallback } from 'react';
+import { useSocket, type ZoneInfo } from './hooks/useSocket';
 import type { Action, WizardStep, WizardState } from './types';
 import ActionSelect from './components/ActionSelect';
 import CredentialsForm from './components/CredentialsForm';
@@ -18,38 +18,47 @@ const initialState: WizardState = {
   selectedZoneIds: [],
 };
 
+type PendingOperation = 'generate-config' | 'deploy' | 'clear' | null;
+
 export default function App() {
   const [state, setState] = useState<WizardState>(initialState);
-  const [initialSelectionDone, setInitialSelectionDone] = useState(false);
-  const socket = useSocket();
+  const pendingOperationRef = useRef<PendingOperation>(null);
+  const loadZonesRef = useRef<() => void>(() => {});
 
-  // Watch for command completion
-  useEffect(() => {
-    if (state.step === 'executing' && !socket.isRunning && socket.lastExitCode !== null) {
-      if (socket.lastExitCode === 0) {
-        // If we just generated config, move to zone selection
-        if (state.action === 'deploy' && state.selectedZoneIds.length === 0) {
-          socket.loadZones();
-          setState((s) => ({ ...s, step: 'zone-select' }));
-        } else {
-          setState((s) => ({ ...s, step: 'success' }));
-        }
+  // Handle command completion via callback (instead of useEffect)
+  const handleCommandComplete = useCallback((exitCode: number) => {
+    if (exitCode === 0) {
+      const operation = pendingOperationRef.current;
+      if (operation === 'generate-config') {
+        // After generating config, load zones and move to zone selection
+        loadZonesRef.current();
+        setState((s) => ({ ...s, step: 'zone-select' }));
       } else {
-        setState((s) => ({ ...s, step: 'error' }));
+        // Deploy or clear completed successfully
+        setState((s) => ({ ...s, step: 'success' }));
       }
+    } else {
+      setState((s) => ({ ...s, step: 'error' }));
     }
-  }, [socket.isRunning, socket.lastExitCode, state.step, state.action, state.selectedZoneIds.length, socket]);
+    pendingOperationRef.current = null;
+  }, []);
 
-  // Auto-select all zones when they are first loaded (only once per wizard session)
-  useEffect(() => {
-    if (socket.zones.length > 0 && !initialSelectionDone) {
-      setInitialSelectionDone(true);
-      setState((s) => ({
-        ...s,
-        selectedZoneIds: socket.zones.map((z) => z.id),
-      }));
-    }
-  }, [socket.zones, initialSelectionDone]);
+  // Handle zones loaded via callback (instead of useEffect)
+  // Auto-select all zones when first loaded
+  const handleZonesLoaded = useCallback((zones: ZoneInfo[]) => {
+    setState((s) => ({
+      ...s,
+      selectedZoneIds: zones.map((z) => z.id),
+    }));
+  }, []);
+
+  const socket = useSocket({
+    onCommandComplete: handleCommandComplete,
+    onZonesLoaded: handleZonesLoaded,
+  });
+
+  // Keep ref updated for use in callbacks
+  loadZonesRef.current = socket.loadZones;
 
   const handleActionSelect = (action: Action) => {
     setState((s) => ({ ...s, action, step: 'credentials' }));
@@ -69,6 +78,7 @@ export default function App() {
       setState((s) => ({ ...s, step: 'clear-confirm' }));
     } else {
       // Deploy flow: generate config first (with Lapi credentials)
+      pendingOperationRef.current = 'generate-config';
       setState((s) => ({ ...s, step: 'executing' }));
       socket.generateConfig(
         credentials.cloudflareToken,
@@ -79,6 +89,7 @@ export default function App() {
   };
 
   const handleClearConfirm = () => {
+    pendingOperationRef.current = 'clear';
     setState((s) => ({ ...s, step: 'executing' }));
     socket.clear();
   };
@@ -92,12 +103,14 @@ export default function App() {
   };
 
   const handleDeploy = async () => {
-    socket.clearOutput(); // Clear previous exit code before changing step
+    socket.clearOutput();
+    pendingOperationRef.current = 'deploy';
     setState((s) => ({ ...s, step: 'executing' }));
     try {
       await socket.updateZones(state.selectedZoneIds);
       socket.deploy(state.crowdsecLapiUrl, state.crowdsecLapiKey);
     } catch (_error) {
+      pendingOperationRef.current = null;
       setState((s) => ({ ...s, step: 'error' }));
     }
   };
@@ -118,7 +131,7 @@ export default function App() {
   const handleReset = () => {
     socket.clearOutput();
     socket.setZones([]);
-    setInitialSelectionDone(false);
+    pendingOperationRef.current = null;
     setState(initialState);
   };
 

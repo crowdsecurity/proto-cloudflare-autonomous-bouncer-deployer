@@ -90,6 +90,26 @@ The Node.js backend:
 - Streams command output back to browser (WebSocket or SSE)
 - Handles exit codes for success/failure feedback
 
+## React Best Practices
+
+### Avoid useEffect when possible
+
+Follow the React guidelines from [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect). Only use `useEffect` for synchronizing with external systems.
+
+**When NOT to use useEffect:**
+- Transforming data for rendering (calculate during render instead)
+- Handling user events (use event handlers)
+- Updating state based on props/state changes (use callbacks from hooks)
+- Chaining effects that trigger each other
+
+**When useEffect IS appropriate:**
+- Subscribing to external systems (WebSocket, browser APIs)
+- Setting up/tearing down connections
+
+**Patterns used in this codebase:**
+- `useSocket` hook accepts `onCommandComplete` and `onZonesLoaded` callbacks instead of consumers using useEffect to watch state changes
+- Auto-scroll uses a ref callback on the last element instead of useEffect watching output changes
+
 ## Documentation Maintenance
 
 **Important**: Keep `docs/DEVELOPER.md` up to date when making changes:

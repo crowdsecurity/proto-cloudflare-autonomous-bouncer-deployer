@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import type { CommandOutput as CommandOutputType } from '../hooks/useSocket';
 
 interface CommandOutputProps {
@@ -7,13 +7,10 @@ interface CommandOutputProps {
 }
 
 export default function CommandOutput({ output, isRunning }: CommandOutputProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
-  }, [output]);
+  // Ref callback that scrolls element into view when mounted
+  const scrollToBottomRef = useCallback((node: HTMLDivElement | null) => {
+    node?.scrollIntoView({ block: 'end' });
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -27,16 +24,14 @@ export default function CommandOutput({ output, isRunning }: CommandOutputProps)
           </h3>
         </div>
 
-        <div
-          ref={containerRef}
-          className="bg-gray-900 rounded-lg p-4 font-mono text-sm h-96 overflow-y-auto"
-        >
+        <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm h-96 overflow-y-auto">
           {output.length === 0 ? (
             <div className="text-gray-500">Waiting for output...</div>
           ) : (
             output.map((line, index) => (
               <div
                 key={index}
+                ref={index === output.length - 1 ? scrollToBottomRef : undefined}
                 className={`whitespace-pre-wrap ${
                   line.type === 'stderr'
                     ? 'text-yellow-400'
