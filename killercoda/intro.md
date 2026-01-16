@@ -20,4 +20,8 @@ Have these ready before clicking Start:
 
 2. **CrowdSec Blocklist Mirror URL + API Key** from [CrowdSec Console](https://app.crowdsec.net).
 
-Click **Start** when ready.
+**Click Start when you see this in the terminal:**
+
+```
+ubuntu:~$
+```

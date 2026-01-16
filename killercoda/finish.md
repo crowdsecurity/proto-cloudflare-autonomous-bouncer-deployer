@@ -1,6 +1,6 @@
 # Setting Up Environment
 
-The environment is being prepared. This takes **3-5 minutes**.
+The environment is being prepared. This takes **1-2 minutes**.
 
 Watch the terminal for progress. When you see **"READY"**, open the GUI:
 

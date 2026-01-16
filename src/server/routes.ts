@@ -1,36 +1,22 @@
 import { Router, type Request, type Response } from 'express';
-import {
-  getZonesFromConfig,
-  updateConfigWithSelectedZones,
-} from './services/bouncer.js';
 
 const router = Router();
 
-// Get zones from generated config
+// Note: Zone operations are now handled via WebSocket with session-based state.
+// These REST endpoints are kept for backward compatibility but return empty/error responses.
+
+// Get zones - requires WebSocket session, returns empty array for REST
 router.get('/zones', async (_req: Request, res: Response) => {
-  try {
-    const zones = await getZonesFromConfig();
-    res.json({ zones });
-  } catch (_error) {
-    res.status(500).json({ error: 'Failed to read zones from config' });
-  }
+  // Zones are stored in WebSocket sessions, not accessible via REST
+  res.json({ zones: [], message: 'Use WebSocket for zone operations' });
 });
 
-// Update config with selected zones
-router.post('/zones/select', async (req: Request, res: Response) => {
-  const { selectedZoneIds } = req.body;
-
-  if (!Array.isArray(selectedZoneIds)) {
-    res.status(400).json({ error: 'selectedZoneIds must be an array' });
-    return;
-  }
-
-  try {
-    await updateConfigWithSelectedZones(selectedZoneIds);
-    res.json({ message: 'Config updated with selected zones' });
-  } catch (_error) {
-    res.status(500).json({ error: 'Failed to update config' });
-  }
+// Update config with selected zones - requires WebSocket session
+router.post('/zones/select', async (_req: Request, res: Response) => {
+  // Zone selection is now session-based via WebSocket
+  res.status(400).json({
+    error: 'Zone selection is now handled via WebSocket. Use the socket connection instead.',
+  });
 });
 
 // Health check

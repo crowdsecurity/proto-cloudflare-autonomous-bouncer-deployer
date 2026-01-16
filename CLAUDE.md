@@ -29,66 +29,53 @@ The GUI implements a multi-step wizard:
 - List all Cloudflare zones (with pagination support)
 - Zone selection (select all / deselect all, individual selection)
 - Optional: JavaScript filter by zone name
-- Generate YAML configuration
-- Deploy as autonomous mode
+- Deploy bouncer infrastructure
 - Success message (future: mini-test and helpful links)
-
-## Bouncer Integration
-
-The GUI interacts with the bouncer binary (`crowdsec-cloudflare-worker-bouncer`) via CLI:
-
-| Operation | Command |
-|-----------|---------|
-| Generate config from token | `-g <token> -o <output_path>` |
-| Deploy autonomous mode | `-S -c <config_path>` |
-| Clear infrastructure | `-d -c <config_path>` |
-| Test config validity | `-t -c <config_path>` |
-
-## Configuration Structure
-
-The bouncer uses YAML configuration with these key sections:
-- `crowdsec_config`: Blocklist mirror URL, API key, update frequency
-- `cloudflare_config.accounts[]`: Cloudflare account tokens and zone configurations
-- `cloudflare_config.accounts[].zones[]`: Zone ID, actions (ban/captcha), turnstile settings
-- `cloudflare_config.decisions_sync_worker.cron`: Sync schedule (default: `*/5 * * * *`)
-
-## Deployment Environment
-
-The GUI runs on a pre-configured infrastructure (KillerCoda, AWS, or similar) where:
-- The Go bouncer binary (`crowdsec-cloudflare-worker-bouncer`) is pre-installed and available in PATH
-- The GUI backend executes bouncer commands via subprocess when users interact with the UI
-- Command output is streamed back to the frontend in real-time
-
-## Configuration
-
-Environment variables (`.env` file for development):
-
-```bash
-# Path to the Go bouncer binary
-# - Development: full path to local build
-# - Production: just the binary name (assumes it's in PATH)
-BOUNCER_BINARY_PATH=crowdsec-cloudflare-worker-bouncer
-
-# Example for local development:
-# BOUNCER_BINARY_PATH=/home/julien/workspace/crowdsec/cs-cloudflare-worker-bouncer/crowdsec-cloudflare-worker-bouncer-v0.0.14-23-g3c6f267/crowdsec-cloudflare-worker-bouncer
-```
-
-The `.env` file is gitignored. Copy `.env.example` to `.env` for local development.
 
 ## Architecture
 
+The GUI uses the official Cloudflare Node.js SDK to interact with the Cloudflare API directly. No external binaries are required.
+
 ```
-┌─────────────────┐     HTTP/WS      ┌─────────────────┐     subprocess     ┌─────────────────┐
-│   Browser       │ ◄──────────────► │  Node.js API    │ ◄────────────────► │  Go Bouncer     │
-│   (React/Vue)   │                  │  (Express)      │                    │  CLI Binary     │
-└─────────────────┘                  └─────────────────┘                    └─────────────────┘
+┌─────────────────┐     WebSocket    ┌─────────────────┐     HTTPS        ┌─────────────────┐
+│   Browser       │ ◄──────────────► │  Node.js API    │ ◄──────────────► │  Cloudflare API │
+│   (React)       │                  │  (Express)      │                  │                 │
+└─────────────────┘                  └─────────────────┘                  └─────────────────┘
 ```
 
 The Node.js backend:
-- Receives user actions from the frontend
-- Spawns bouncer commands via `child_process`
-- Streams command output back to browser (WebSocket or SSE)
-- Handles exit codes for success/failure feedback
+- Receives user actions from the frontend via WebSocket
+- Calls Cloudflare API using the official `cloudflare` npm package
+- Streams progress back to browser in real-time
+- Manages session state in-memory (per WebSocket connection)
+
+## Deployed Resources
+
+When deploying, the following Cloudflare resources are created:
+- **KV Namespace**: `CROWDSECCFBOUNCERNS` - stores decisions, ban template, and Turnstile config
+- **D1 Database**: `CROWDSECCFBOUNCERDB` - stores metrics (optional)
+- **Main Worker**: `crowdsec-cloudflare-worker-bouncer` - handles incoming requests
+- **Sync Worker**: `crowdsec-decisions-sync-worker` - syncs decisions from CrowdSec on cron
+- **Worker Routes**: Routes traffic through the bouncer (`*zone.com/*`)
+- **Turnstile Widgets**: For captcha challenges (one per zone)
+
+## Worker Bundles
+
+The Cloudflare Worker scripts are pre-built bundles from the Go repository:
+- `src/server/assets/workers/main-worker-bundle.js`
+- `src/server/assets/workers/decisions-sync-worker-bundle.js`
+
+To update: rebuild cs-cloudflare-worker-bouncer and copy from `pkg/cloudflare/*/dist/main.js`.
+
+## Configuration
+
+Environment variables (`.env` file, optional):
+
+```bash
+PORT=3000
+```
+
+The `.env` file is gitignored.
 
 ## React Best Practices
 

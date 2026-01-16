@@ -6,15 +6,15 @@ A web-based GUI for configuring and deploying the [CrowdSec Cloudflare Worker Bo
 
 - Deploy bouncer infrastructure to Cloudflare zones
 - Select which zones to protect
-- Real-time command output streaming
+- Real-time progress streaming
 - Clear/remove all bouncer infrastructure
+- No external dependencies - uses Cloudflare API directly
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- The `crowdsec-cloudflare-worker-bouncer` binary installed and in PATH
 
 ### Installation
 
@@ -43,10 +43,9 @@ Opens at http://localhost:3000
 
 ## Configuration
 
-Create a `.env` file (see `.env.example`):
+Create a `.env` file (optional):
 
 ```bash
-BOUNCER_BINARY_PATH=crowdsec-cloudflare-worker-bouncer
 PORT=3000
 ```
 
@@ -56,6 +55,25 @@ PORT=3000
 2. **Enter Credentials**: Provide Cloudflare API token and CrowdSec blocklist mirror credentials
 3. **Select Zones**: Choose which Cloudflare zones to protect
 4. **Deploy**: Watch real-time output as infrastructure is created
+
+## Architecture
+
+The GUI communicates directly with the Cloudflare API using the official Node.js SDK. No external binaries are required.
+
+```
+Browser (React) ←→ WebSocket ←→ Node.js (Express) ←→ Cloudflare API
+```
+
+### Deployed Resources
+
+When you deploy, the following resources are created in your Cloudflare account:
+
+- **KV Namespace**: `CROWDSECCFBOUNCERNS` - stores decisions and configuration
+- **D1 Database**: `CROWDSECCFBOUNCERDB` - stores metrics (optional)
+- **Main Worker**: `crowdsec-cloudflare-worker-bouncer` - handles incoming requests
+- **Sync Worker**: `crowdsec-decisions-sync-worker` - syncs decisions from CrowdSec
+- **Worker Routes**: Routes traffic through the bouncer for selected zones
+- **Turnstile Widgets**: For captcha challenges (one per zone)
 
 ## Documentation
 

@@ -8,13 +8,10 @@ import { fileURLToPath } from 'url';
 import { serverConfig } from './config.js';
 import routes from './routes.js';
 import {
-  generateConfig,
-  deployAutonomous,
-  clearInfrastructure,
-  getZonesFromConfig,
-  updateConfigWithSelectedZones,
-  type CommandOutput,
-} from './services/bouncer.js';
+  cloudflareService,
+  type ProgressCallback,
+} from './services/cloudflare/index.js';
+import { sessionManager } from './services/session.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,45 +45,60 @@ if (!serverConfig.isDev) {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
-  const sendOutput = (output: CommandOutput) => {
+  const sendOutput: ProgressCallback = (output) => {
     socket.emit('command-output', output);
   };
 
-  // Generate config from Cloudflare token
-  socket.on('generate-config', async (data: {
-    cloudflareToken: string;
-    crowdsecLapiUrl: string;
-    crowdsecLapiKey: string;
-  }) => {
-    console.log('Generating config...');
-    console.log('crowdsecLapiUrl:', data.crowdsecLapiUrl);
-    console.log('crowdsecLapiKey:', data.crowdsecLapiKey ? '[REDACTED]' : 'EMPTY');
-    try {
-      await generateConfig(
-        data.cloudflareToken,
-        data.crowdsecLapiUrl,
-        data.crowdsecLapiKey,
-        sendOutput
+  // Generate config / discover zones from Cloudflare token
+  socket.on(
+    'generate-config',
+    async (data: {
+      cloudflareToken: string;
+      crowdsecLapiUrl: string;
+      crowdsecLapiKey: string;
+    }) => {
+      console.log('Discovering zones...');
+      console.log('crowdsecLapiUrl:', data.crowdsecLapiUrl);
+      console.log(
+        'crowdsecLapiKey:',
+        data.crowdsecLapiKey ? '[REDACTED]' : 'EMPTY'
       );
-    } catch (error) {
-      sendOutput({ type: 'error', data: String(error) });
-    }
-  });
 
-  // Get zones from config
+      try {
+        const zones = await cloudflareService.discoverAndStoreZones(
+          socket.id,
+          data.cloudflareToken,
+          data.crowdsecLapiUrl,
+          data.crowdsecLapiKey,
+          sendOutput
+        );
+
+        // Send exit event to signal completion
+        sendOutput({ type: 'exit', data: '', code: 0 });
+
+        // Also emit zones-loaded for the frontend to show zone selection
+        socket.emit('zones-loaded', { zones });
+      } catch (error) {
+        sendOutput({ type: 'error', data: String(error) });
+        sendOutput({ type: 'exit', data: '', code: 1 });
+      }
+    }
+  );
+
+  // Get zones from session
   socket.on('get-zones', async () => {
     try {
-      const zones = await getZonesFromConfig();
+      const zones = cloudflareService.getZones(socket.id);
       socket.emit('zones-loaded', { zones });
     } catch (error) {
       socket.emit('zones-error', { error: String(error) });
     }
   });
 
-  // Update selected zones
+  // Update selected zones in session
   socket.on('update-zones', async (data: { selectedZoneIds: string[] }) => {
     try {
-      await updateConfigWithSelectedZones(data.selectedZoneIds);
+      cloudflareService.updateSelectedZones(socket.id, data.selectedZoneIds);
       socket.emit('zones-updated', { success: true });
     } catch (error) {
       socket.emit('zones-error', { error: String(error) });
@@ -96,16 +108,15 @@ io.on('connection', (socket) => {
   // Deploy in autonomous mode
   socket.on(
     'deploy',
-    async (data: { crowdsecLapiUrl: string; crowdsecLapiKey: string }) => {
+    async (_data: { crowdsecLapiUrl: string; crowdsecLapiKey: string }) => {
       console.log('Deploying autonomous bouncer...');
       try {
-        await deployAutonomous(
-          data.crowdsecLapiUrl,
-          data.crowdsecLapiKey,
-          sendOutput
-        );
+        await cloudflareService.deploy(socket.id, sendOutput);
+        // Send exit event on success
+        sendOutput({ type: 'exit', data: '', code: 0 });
       } catch (error) {
         sendOutput({ type: 'error', data: String(error) });
+        sendOutput({ type: 'exit', data: '', code: 1 });
       }
     }
   );
@@ -114,14 +125,19 @@ io.on('connection', (socket) => {
   socket.on('clear', async () => {
     console.log('Clearing infrastructure...');
     try {
-      await clearInfrastructure(sendOutput);
+      await cloudflareService.clear(socket.id, sendOutput);
+      // Send exit event on success
+      sendOutput({ type: 'exit', data: '', code: 0 });
     } catch (error) {
       sendOutput({ type: 'error', data: String(error) });
+      sendOutput({ type: 'exit', data: '', code: 1 });
     }
   });
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
+    // Clean up session on disconnect
+    sessionManager.delete(socket.id);
   });
 });
 
@@ -129,5 +145,4 @@ io.on('connection', (socket) => {
 const host = process.env.HOST || '0.0.0.0';
 httpServer.listen(serverConfig.port, host, () => {
   console.log(`Server running on http://${host}:${serverConfig.port}`);
-  console.log(`Bouncer binary: ${serverConfig.bouncerBinaryPath}`);
 });
