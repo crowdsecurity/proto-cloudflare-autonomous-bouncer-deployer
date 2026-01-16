@@ -31,7 +31,6 @@ echo "Building CrowdSec Cloudflare Worker Bouncer..."
 cd /root
 git clone https://github.com/crowdsecurity/cs-cloudflare-worker-bouncer.git
 cd cs-cloudflare-worker-bouncer
-git checkout feat/autonomous-worker
 make build-worker-js
 make release
 
