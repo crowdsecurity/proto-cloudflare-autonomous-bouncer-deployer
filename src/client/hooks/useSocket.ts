@@ -122,11 +122,11 @@ export function useSocket(options: UseSocketOptions = {}) {
     });
   }, []);
 
-  const deploy = useCallback((crowdsecLapiUrl: string, crowdsecLapiKey: string) => {
+  const deploy = useCallback(() => {
     if (!socketRef.current) {return;}
     setIsRunning(true);
     clearOutput();
-    socketRef.current.emit('deploy', { crowdsecLapiUrl, crowdsecLapiKey });
+    socketRef.current.emit('deploy');
   }, [clearOutput]);
 
   const clear = useCallback((cloudflareToken: string) => {

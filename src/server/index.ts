@@ -108,7 +108,7 @@ io.on('connection', (socket) => {
   // Deploy in autonomous mode
   socket.on(
     'deploy',
-    async (_data: { crowdsecLapiUrl: string; crowdsecLapiKey: string }) => {
+    async () => {
       console.log('Deploying autonomous bouncer...');
       try {
         await cloudflareService.deploy(socket.id, sendOutput);

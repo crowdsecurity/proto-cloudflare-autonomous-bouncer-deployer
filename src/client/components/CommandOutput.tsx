@@ -12,7 +12,7 @@ export default function CommandOutput({ output, isRunning }: CommandOutputProps)
   // Ref callback that scrolls element into view, debounced via rAF
   // so rapid output lines only trigger one scroll per animation frame
   const scrollToBottomRef = useCallback((node: HTMLDivElement | null) => {
-    if (!node) return;
+    if (!node) {return;}
     cancelAnimationFrame(scrollFrameRef.current);
     scrollFrameRef.current = requestAnimationFrame(() => {
       node.scrollIntoView({ block: 'end' });

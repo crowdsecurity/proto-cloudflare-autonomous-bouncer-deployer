@@ -108,7 +108,7 @@ export default function App() {
     setState((s) => ({ ...s, step: 'executing' }));
     try {
       await socket.updateZones(state.selectedZoneIds);
-      socket.deploy(state.crowdsecLapiUrl, state.crowdsecLapiKey);
+      socket.deploy();
     } catch (_error) {
       pendingOperationRef.current = null;
       setState((s) => ({ ...s, step: 'error' }));
