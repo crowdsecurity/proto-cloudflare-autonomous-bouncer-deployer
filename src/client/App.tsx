@@ -91,7 +91,7 @@ export default function App() {
   const handleClearConfirm = () => {
     pendingOperationRef.current = 'clear';
     setState((s) => ({ ...s, step: 'executing' }));
-    socket.clear();
+    socket.clear(state.cloudflareToken);
   };
 
   const handleClearCancel = () => {
@@ -116,12 +116,9 @@ export default function App() {
   };
 
   const handleBack = () => {
-    const stepOrder: WizardStep[] = [
-      'action-select',
-      'credentials',
-      'clear-confirm',
-      'zone-select',
-    ];
+    const stepOrder: WizardStep[] = state.action === 'clear'
+      ? ['action-select', 'credentials', 'clear-confirm']
+      : ['action-select', 'credentials', 'zone-select'];
     const currentIndex = stepOrder.indexOf(state.step);
     if (currentIndex > 0) {
       setState((s) => ({ ...s, step: stepOrder[currentIndex - 1] }));

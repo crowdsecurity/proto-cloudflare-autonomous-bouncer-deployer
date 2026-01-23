@@ -122,10 +122,10 @@ io.on('connection', (socket) => {
   );
 
   // Clear infrastructure
-  socket.on('clear', async () => {
+  socket.on('clear', async (data: { cloudflareToken: string }) => {
     console.log('Clearing infrastructure...');
     try {
-      await cloudflareService.clear(socket.id, sendOutput);
+      await cloudflareService.clear(socket.id, data.cloudflareToken, sendOutput);
       // Send exit event on success
       sendOutput({ type: 'exit', data: '', code: 0 });
     } catch (error) {

@@ -212,23 +212,28 @@ export class CloudflareService {
   /**
    * Clear bouncer infrastructure
    */
-  async clear(socketId: string, onProgress: ProgressCallback): Promise<void> {
-    const session = sessionManager.get(socketId);
+  async clear(socketId: string, cloudflareToken: string, onProgress: ProgressCallback): Promise<void> {
+    // Create or update session with the provided token
+    let session = sessionManager.get(socketId);
     if (!session) {
-      throw new Error('Session not found. Please start the configuration process again.');
+      session = sessionManager.create(socketId, cloudflareToken);
+    } else {
+      session.cloudflareToken = cloudflareToken;
     }
 
-    if (!session.cloudflareToken) {
-      throw new Error('Cloudflare token not found in session');
+    const client = createCloudflareClient(cloudflareToken);
+
+    // Discover zones if not already populated
+    let allZones = session.accounts.flatMap((a) => a.zones);
+    if (allZones.length === 0) {
+      onProgress({ type: 'stdout', data: 'Discovering zones before cleanup...\n' });
+      const zones = await discoverZones(client, onProgress);
+      sessionManager.setZones(socketId, zones);
+      allZones = zones;
     }
-
-    const client = createCloudflareClient(session.cloudflareToken);
-
-    // Get all zones (not just selected) for cleanup
-    const allZones = session.accounts.flatMap((a) => a.zones);
 
     if (allZones.length === 0) {
-      throw new Error('No zones found in session. Please discover zones first.');
+      throw new Error('No zones found. Ensure your token has access to at least one zone.');
     }
 
     // Group by account

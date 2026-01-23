@@ -129,11 +129,11 @@ export function useSocket(options: UseSocketOptions = {}) {
     socketRef.current.emit('deploy', { crowdsecLapiUrl, crowdsecLapiKey });
   }, [clearOutput]);
 
-  const clear = useCallback(() => {
+  const clear = useCallback((cloudflareToken: string) => {
     if (!socketRef.current) {return;}
     setIsRunning(true);
     clearOutput();
-    socketRef.current.emit('clear');
+    socketRef.current.emit('clear', { cloudflareToken });
   }, [clearOutput]);
 
   return {
