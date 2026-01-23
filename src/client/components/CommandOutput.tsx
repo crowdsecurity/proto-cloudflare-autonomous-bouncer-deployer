@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { CommandOutput as CommandOutputType } from '../hooks/useSocket';
 
 interface CommandOutputProps {
@@ -7,9 +7,16 @@ interface CommandOutputProps {
 }
 
 export default function CommandOutput({ output, isRunning }: CommandOutputProps) {
-  // Ref callback that scrolls element into view when mounted
+  const scrollFrameRef = useRef<number>(0);
+
+  // Ref callback that scrolls element into view, debounced via rAF
+  // so rapid output lines only trigger one scroll per animation frame
   const scrollToBottomRef = useCallback((node: HTMLDivElement | null) => {
-    node?.scrollIntoView({ block: 'end' });
+    if (!node) return;
+    cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      node.scrollIntoView({ block: 'end' });
+    });
   }, []);
 
   return (
