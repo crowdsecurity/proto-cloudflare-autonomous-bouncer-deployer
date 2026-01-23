@@ -111,6 +111,7 @@ export async function findAndDeleteKVNamespace(
   onProgress({ type: 'stdout', data: 'Looking for existing KV namespaces...\n' });
 
   try {
+    let deletedCount = 0;
     for await (const ns of client.kv.namespaces.list({ account_id: accountId })) {
       if (ns.title === RESOURCE_NAMES.KV_NAMESPACE) {
         onProgress({
@@ -118,13 +119,14 @@ export async function findAndDeleteKVNamespace(
           data: `Deleting KV namespace: ${ns.id}...\n`,
         });
         await client.kv.namespaces.delete(ns.id, { account_id: accountId });
-        onProgress({ type: 'stdout', data: 'KV namespace deleted\n' });
-        return;
+        deletedCount++;
       }
     }
     onProgress({
       type: 'stdout',
-      data: 'No existing KV namespace found\n',
+      data: deletedCount > 0
+        ? `Deleted ${deletedCount} KV namespace(s)\n`
+        : 'No existing KV namespace found\n',
     });
   } catch (err) {
     if (!isNotFoundError(err)) {

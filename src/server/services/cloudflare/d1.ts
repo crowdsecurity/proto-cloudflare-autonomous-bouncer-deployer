@@ -63,6 +63,7 @@ export async function findAndDeleteD1Database(
   onProgress({ type: 'stdout', data: 'Looking for existing D1 databases...\n' });
 
   try {
+    let deletedCount = 0;
     for await (const db of client.d1.database.list({ account_id: accountId })) {
       if (db.name === RESOURCE_NAMES.D1_DATABASE && db.uuid) {
         onProgress({
@@ -70,13 +71,14 @@ export async function findAndDeleteD1Database(
           data: `Deleting D1 database: ${db.uuid}...\n`,
         });
         await client.d1.database.delete(db.uuid, { account_id: accountId });
-        onProgress({ type: 'stdout', data: 'D1 database deleted\n' });
-        return;
+        deletedCount++;
       }
     }
     onProgress({
       type: 'stdout',
-      data: 'No existing D1 database found\n',
+      data: deletedCount > 0
+        ? `Deleted ${deletedCount} D1 database(s)\n`
+        : 'No existing D1 database found\n',
     });
   } catch (err) {
     if (!isNotFoundError(err)) {
