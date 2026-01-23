@@ -24,9 +24,7 @@ export default function ZoneSelect({
     if (!filter.trim()) {return zones;}
     const lowerFilter = filter.toLowerCase();
     return zones.filter(
-      (zone) =>
-        zone.domain.toLowerCase().includes(lowerFilter) ||
-        zone.accountName.toLowerCase().includes(lowerFilter)
+      (zone) => zone.domain.toLowerCase().includes(lowerFilter)
     );
   }, [zones, filter]);
 
@@ -117,7 +115,9 @@ export default function ZoneSelect({
               onClick={allFilteredSelected ? handleDeselectAll : handleSelectAll}
               className="btn-secondary whitespace-nowrap"
             >
-              {allFilteredSelected ? 'Deselect All' : 'Select All'}
+              {allFilteredSelected
+                ? filter.trim() ? 'Deselect All Filtered Zones' : 'Deselect All'
+                : filter.trim() ? 'Select All Filtered Zones' : 'Select All'}
             </button>
           </div>
         </div>
