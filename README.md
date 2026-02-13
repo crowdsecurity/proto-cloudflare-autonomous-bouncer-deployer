@@ -19,7 +19,7 @@ A web-based GUI for configuring and deploying the [CrowdSec Cloudflare Worker Bo
 ### Installation
 
 ```bash
-git clone https://github.com/crowdsecurity/cs-cloudflare-bouncer-gui.git
+git clone https://github.com/crowdsecurity/cloudflare-autonomous-bouncer-deployer.git cs-cloudflare-bouncer-gui
 cd cs-cloudflare-bouncer-gui
 npm install
 ```

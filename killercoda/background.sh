@@ -18,9 +18,9 @@ npm --version
 
 # Clone and build the GUI
 echo "Setting up Bouncer GUI..."
-cd /root
-git clone https://github.com/julienloizelet/cs-cloudflare-bouncer-gui.git
+mkdir -p /root/cs-cloudflare-bouncer-gui
 cd /root/cs-cloudflare-bouncer-gui
+git clone https://github.com/crowdsecurity/cloudflare-autonomous-bouncer-deployer.git ./
 npm install
 npm run build
 
