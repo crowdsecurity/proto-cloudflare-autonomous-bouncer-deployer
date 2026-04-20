@@ -1,3 +1,8 @@
+# DEPRECATE
+This prototype resulted in a better version using Cloudflare recommanded deployment system : [https://github.com/crowdsecurity/cs-cloudflare-worker-bouncer-install](https://github.com/crowdsecurity/cs-cloudflare-worker-bouncer-install)
+
+---
+
 # CrowdSec Cloudflare Bouncer GUI
 
 A web-based GUI for configuring and deploying the [CrowdSec Cloudflare Worker Bouncer](https://github.com/crowdsecurity/cs-cloudflare-worker-bouncer) in autonomous mode.
